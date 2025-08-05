@@ -143,15 +143,53 @@ class WebViewPage extends StatefulWidget {
 
 class _WebViewPageState extends State<WebViewPage>
     with AutomaticKeepAliveClientMixin {
-  late WebViewController _controller;
+  late WebViewController _webViewController;
   DateTime? _lastPressedTime;
 
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadRequest(Uri.parse('http://192.168.31.234:8080')); // 替换为你的网址
+    _webViewController = WebViewController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showInputDialog(context);
+    });
+  }
+
+  void _showInputDialog(BuildContext context) {
+    final urlController =
+        TextEditingController(text: 'http://192.168.31.234:8080');
+    showDialog(
+      context: context,
+      barrierDismissible: false, // 禁止点击外部关闭
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('请输入影视地址'),
+          content: TextField(
+            controller: urlController,
+            // decoration: const InputDecoration(hintText: 'http://192.168.31.234:8080'),
+            keyboardType: TextInputType.url,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Uri? validUri = Uri.tryParse(urlController.text.trim());
+                if (validUri != null && validUri.hasScheme) {
+                  _webViewController
+                    ..setJavaScriptMode(JavaScriptMode.unrestricted)
+                    ..loadRequest(validUri);
+                  Navigator.of(context).pop();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('输入格式错误，请重试')),
+                  );
+                }
+              },
+              child: const Text('确认'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -168,15 +206,15 @@ class _WebViewPageState extends State<WebViewPage>
         }
       },
       child: Scaffold(
-        body: WebViewWidget(controller: _controller),
+        body: WebViewWidget(controller: _webViewController),
       ),
     );
   }
 
   Future<bool> _handlePop() async {
     // 检查 WebView 是否可以返回上一个页面
-    if (await _controller.canGoBack()) {
-      _controller.goBack();
+    if (await _webViewController.canGoBack()) {
+      _webViewController.goBack();
       return false; // 阻止默认的返回行为
     }
     if (_lastPressedTime == null ||
