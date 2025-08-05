@@ -19,4 +19,7 @@ samples, guidance on mobile development, and a full API reference.
 dart run change_app_package_name:main com.new.package_name
 dart run flutter_app_name
 dart run flutter_launcher_icons
+
+flutter build apk --split-per-abi
+flutter build apk --target-platform android-arm64
 ```

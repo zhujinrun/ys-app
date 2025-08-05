@@ -141,8 +141,10 @@ class WebViewPage extends StatefulWidget {
   State<WebViewPage> createState() => _WebViewPageState();
 }
 
-class _WebViewPageState extends State<WebViewPage> {
+class _WebViewPageState extends State<WebViewPage>
+    with AutomaticKeepAliveClientMixin {
   late WebViewController _controller;
+  DateTime? _lastPressedTime;
 
   @override
   void initState() {
@@ -154,8 +156,41 @@ class _WebViewPageState extends State<WebViewPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: WebViewWidget(controller: _controller),
+    super.build(context); // 调用 super.build(context) 以支持状态保持
+    return PopScope(
+      canPop: false, // 设置为 false，拦截返回手势
+      onPopInvokedWithResult: (didPop, result) async {
+        // 使用 onPopInvokedWithResult
+        if (didPop) return; // 如果已经处理了返回，则直接返回
+        final allowed = await _handlePop(); // 调用自定义的返回逻辑
+        if (allowed && mounted) {
+          SystemNavigator.pop(); // 退出程序
+        }
+      },
+      child: Scaffold(
+        body: WebViewWidget(controller: _controller),
+      ),
     );
   }
+
+  Future<bool> _handlePop() async {
+    // 检查 WebView 是否可以返回上一个页面
+    if (await _controller.canGoBack()) {
+      _controller.goBack();
+      return false; // 阻止默认的返回行为
+    }
+    if (_lastPressedTime == null ||
+        DateTime.now().difference(_lastPressedTime!) >
+            const Duration(seconds: 2)) {
+      // 如果两次点击间隔超过 2 秒，则显示提示消息
+      _lastPressedTime = DateTime.now();
+      return false; // 阻止退出
+    } else {
+      // 如果两次点击间隔小于 2 秒，则退出应用
+      return true; // 允许退出
+    }
+  }
+
+  @override
+  bool get wantKeepAlive => true; // 返回 true 以启用状态保持
 }
