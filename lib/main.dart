@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:ys_app/play.dart';
+import 'package:ys_app/search.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,11 +41,12 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // home: const MyHomePage(title: 'Flutter Demo Home Page'),
-      home: const PlayPage(
-        '凡人修仙传',
-        episode: '第一集',
-        playUrl: 'https://hd.ijycnd.com/play/negJ1q9d/index.m3u8',
-      ),
+      // home: const PlayPage(
+      //   '凡人修仙传',
+      //   episode: '第一集',
+      //   playUrl: 'https://hd.ijycnd.com/play/negJ1q9d/index.m3u8',
+      // ),
+      home: const SearchPage(),
     );
   }
 }
