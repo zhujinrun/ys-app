@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:ys_app/play.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // 设置状态栏透明
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  // 强制横屏
-  SystemChrome.setPreferredOrientations(
-      [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+  // // 强制横屏
+  // SystemChrome.setPreferredOrientations(
+  //     [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
   runApp(const MyApp());
 }
 
@@ -41,7 +41,11 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       // home: const MyHomePage(title: 'Flutter Demo Home Page'),
-      home: const WebViewPage(),
+      home: const PlayPage(
+        '凡人修仙传',
+        episode: '第一集',
+        playUrl: 'https://hd.ijycnd.com/play/negJ1q9d/index.m3u8',
+      ),
     );
   }
 }
@@ -132,103 +136,4 @@ class _MyHomePageState extends State<MyHomePage> {
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
-}
-
-class WebViewPage extends StatefulWidget {
-  const WebViewPage({super.key});
-
-  @override
-  State<WebViewPage> createState() => _WebViewPageState();
-}
-
-class _WebViewPageState extends State<WebViewPage>
-    with AutomaticKeepAliveClientMixin {
-  late WebViewController _webViewController;
-  DateTime? _lastPressedTime;
-
-  @override
-  void initState() {
-    super.initState();
-    _webViewController = WebViewController();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showInputDialog(context);
-    });
-  }
-
-  void _showInputDialog(BuildContext context) {
-    final urlController =
-        TextEditingController(text: 'http://192.168.31.234:8080');
-    showDialog(
-      context: context,
-      barrierDismissible: false, // 禁止点击外部关闭
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('请输入影视地址'),
-          content: TextField(
-            controller: urlController,
-            // decoration: const InputDecoration(hintText: 'http://192.168.31.234:8080'),
-            keyboardType: TextInputType.url,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Uri? validUri = Uri.tryParse(urlController.text.trim());
-                if (validUri != null && validUri.hasScheme) {
-                  _webViewController
-                    ..setJavaScriptMode(JavaScriptMode.unrestricted)
-                    ..loadRequest(validUri);
-                  Navigator.of(context).pop();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('输入格式错误，请重试')),
-                  );
-                }
-              },
-              child: const Text('确认'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context); // 调用 super.build(context) 以支持状态保持
-    return PopScope(
-      canPop: false, // 设置为 false，拦截返回手势
-      onPopInvokedWithResult: (didPop, result) async {
-        // 使用 onPopInvokedWithResult
-        if (didPop) return; // 如果已经处理了返回，则直接返回
-        final allowed = await _handlePop(); // 调用自定义的返回逻辑
-        if (allowed && mounted) {
-          SystemNavigator.pop(); // 退出程序
-        }
-      },
-      child: Scaffold(
-        body: WebViewWidget(controller: _webViewController),
-      ),
-    );
-  }
-
-  Future<bool> _handlePop() async {
-    // 检查 WebView 是否可以返回上一个页面
-    if (await _webViewController.canGoBack()) {
-      _webViewController.goBack();
-      return false; // 阻止默认的返回行为
-    }
-    if (_lastPressedTime == null ||
-        DateTime.now().difference(_lastPressedTime!) >
-            const Duration(seconds: 2)) {
-      // 如果两次点击间隔超过 2 秒，则显示提示消息
-      _lastPressedTime = DateTime.now();
-      return false; // 阻止退出
-    } else {
-      // 如果两次点击间隔小于 2 秒，则退出应用
-      return true; // 允许退出
-    }
-  }
-
-  @override
-  bool get wantKeepAlive => true; // 返回 true 以启用状态保持
 }
