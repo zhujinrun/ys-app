@@ -3,7 +3,18 @@ import 'package:ys_app/models/home.dart';
 import 'package:ys_app/utils/config.dart';
 
 class Api {
-  static final _dio = Dio();
+  static final _dio = Dio()
+    ..options.connectTimeout = const Duration(seconds: 10)
+    ..options.receiveTimeout = const Duration(seconds: 15);
+
+  static Future<bool> testHealth() async {
+    try {
+      final res = await _dio.get('${AppConfigs.apiBaseUrl}/api/ping');
+      return res.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
 
   static Future<HomeData> fetchHomeData() async {
     try {

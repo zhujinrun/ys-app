@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ys_app/play.dart';
 import 'package:ys_app/utils/api.dart';
+import 'package:ys_app/utils/config.dart';
+import 'package:ys_app/utils/dialog.dart';
 import 'models/home.dart';
 
 class SearchPage extends StatefulWidget {
@@ -25,12 +27,20 @@ class _SearchPageState extends State<SearchPage> {
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focus = FocusNode();
+  final GlobalKey _searchKey = GlobalKey();
 
   _showOverlay() {
     _hideOverlay(); // 先清理旧 Overlay
+
+    // 先在当前帧拿到搜索框的 RenderBox
+    final renderBox =
+        _searchKey.currentContext!.findRenderObject() as RenderBox;
+    final offset = renderBox.localToGlobal(Offset.zero); // 左上角坐标
+    final bottomY = offset.dy + renderBox.size.height; // 底边 y
+
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
-        top: 130, // 搜索框下方
+        top: bottomY + 4, // 搜索框下方
         left: 12,
         right: 12,
         child: Material(
@@ -67,10 +77,13 @@ class _SearchPageState extends State<SearchPage> {
     _overlayEntry = null;
   }
 
+  bool _firstRun = true;
+
   @override
   void initState() {
     super.initState();
-    _homeDataFuture = Api.fetchHomeData();
+
+    _homeDataFuture = Future.error('加载失败，未配置服务地址'); // 初始为错误状态
     _searchController.addListener(() {
       _debounce?.cancel();
       _debounce = Timer(const Duration(milliseconds: 400),
@@ -81,6 +94,20 @@ class _SearchPageState extends State<SearchPage> {
     _focus.addListener(() {
       if (!_focus.hasFocus) _hideOverlay();
     });
+
+    // 弹框只弹一次
+    if (_firstRun) {
+      _firstRun = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final url = await DialogHelper.showUrlInput(context);
+        if (url != null && url.isNotEmpty) {
+          AppConfigs.apiBaseUrl = url;
+          setState(() {});
+          // 重新拉取首页
+          _homeDataFuture = Api.fetchHomeData();
+        }
+      });
+    }
   }
 
   void _onSearch(String key) {
@@ -124,7 +151,16 @@ class _SearchPageState extends State<SearchPage> {
         future: _homeDataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: SizedBox(
+                width: 36, // 任意相等值
+                height: 36,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3, // 可选：更细/更粗
+                  color: Colors.white,
+                ),
+              ),
+            );
           } else if (snapshot.hasError) {
             return Center(child: Text('加载失败：${snapshot.error}'));
           } else {
@@ -138,6 +174,7 @@ class _SearchPageState extends State<SearchPage> {
                 children: [
                   // 搜索框
                   TextField(
+                    key: _searchKey,
                     controller: _searchController,
                     decoration: const InputDecoration(
                       hintText: '请输入影片名称...',
@@ -182,7 +219,7 @@ class _SearchPageState extends State<SearchPage> {
       physics: const NeverScrollableScrollPhysics(), // 禁止滚动
       padding: const EdgeInsets.only(top: 10, left: 5, right: 5, bottom: 0),
       crossAxisCount: 2, // 每行 2 个
-      childAspectRatio: 7 / 1, // 宽:高 ≈ 4:1（文字行）
+      childAspectRatio: 6, // 宽:高 ≈ 6:1（文字行）
       mainAxisSpacing: 4,
       crossAxisSpacing: 4,
       children: items

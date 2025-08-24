@@ -28,6 +28,7 @@ class _PlayPageState extends State<PlayPage> {
   String _year = '';
   List<Episode> eps = [];
 
+  late Future<void> _initFuture;
   late VideoPlayerController _playerController;
   late ChewieController _chewieController;
 
@@ -39,6 +40,7 @@ class _PlayPageState extends State<PlayPage> {
     debugPrint('播放地址: ${widget.playUrl}');
     _episode = widget.episode ?? '';
     _playUrl = widget.playUrl ?? '';
+    _initFuture = Future.error('加载失败，未读取影视信息'); // 初始为错误状态
     if (_playUrl.isNotEmpty) {
       initializeVideo(_playUrl);
     } else {
@@ -59,14 +61,14 @@ class _PlayPageState extends State<PlayPage> {
       }
     });
     try {
-      await _playerController.initialize(); // 🔥关键一步
+      _initFuture = _playerController.initialize(); // 🔥关键一步
       // 初始化 ChewieController
       _chewieController = ChewieController(
         videoPlayerController: _playerController,
         autoPlay: false,
         looping: false,
         showControls: true,
-        aspectRatio: _playerController.value.aspectRatio,
+        // aspectRatio: _playerController.value.aspectRatio,
         errorBuilder: (context, error) => Center(
           child:
               Text('播放失败: $error', style: const TextStyle(color: Colors.red)),
@@ -125,62 +127,92 @@ class _PlayPageState extends State<PlayPage> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    return Scaffold(
-      body: Column(
-        children: [
-          Container(
-            color: Colors.black.withOpacity(0.95),
-            height: screenHeight / 2.9,
-            width: screenWidth,
-            child: _playerController.value.isInitialized
-                ? Chewie(
-                    controller: _chewieController,
-                  )
-                : const CircularProgressIndicator(),
-          ),
-          const SizedBox(height: 5),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: RichText(
-              textAlign: TextAlign.left,
-              text: TextSpan(
-                style: const TextStyle(color: Colors.black, fontSize: 14),
-                children: [
-                  const TextSpan(text: ' '),
-                  const TextSpan(text: '正在播放: '),
-                  TextSpan(
-                    text: widget.title,
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black),
-                  ),
-                  const TextSpan(text: '      '),
-                  if (_episode.isNotEmpty) ...[
-                    const TextSpan(text: '剧集: '),
-                    TextSpan(
-                      text: _episode,
-                      style:
-                          const TextStyle(fontSize: 14, color: Colors.black87),
-                    ),
-                  ],
-                  const TextSpan(text: '      '),
-                  if (_year.isNotEmpty) ...[
-                    const TextSpan(text: '年份: '),
-                    TextSpan(
-                      text: _year,
-                      style:
-                          const TextStyle(fontSize: 14, color: Colors.black87),
-                    ),
-                  ],
-                ],
+    return FutureBuilder(
+      future: _initFuture,
+      builder: (_, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting ||
+            snapshot.hasError) {
+          return const Center(
+            child: SizedBox(
+              width: 36, // 任意相等值
+              height: 36,
+              child: CircularProgressIndicator(
+                strokeWidth: 3, // 可选：更细/更粗
+                color: Colors.white,
               ),
             ),
+          );
+        }
+        return Scaffold(
+          body: Column(
+            children: [
+              Container(
+                color: Colors.black.withOpacity(0.95),
+                height: screenHeight / 2.9,
+                width: screenWidth,
+                child: _playerController.value.isInitialized
+                    ? Chewie(
+                        controller: _chewieController,
+                      )
+                    : const Center(
+                        child: SizedBox(
+                          width: 36, // 任意相等值
+                          height: 36,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3, // 可选：更细/更粗
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+              ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: RichText(
+                  textAlign: TextAlign.left,
+                  text: TextSpan(
+                    style: const TextStyle(color: Colors.black, fontSize: 14),
+                    children: [
+                      const TextSpan(text: ' '),
+                      const TextSpan(text: '正在播放: '),
+                      TextSpan(
+                        text: widget.title,
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black),
+                      ),
+                      const TextSpan(text: '      '),
+                      if (_episode.isNotEmpty) ...[
+                        const TextSpan(text: '剧集: '),
+                        TextSpan(
+                          text: _episode,
+                          style: const TextStyle(
+                              fontSize: 14, color: Colors.black87),
+                        ),
+                      ],
+                      const TextSpan(text: '      '),
+                      if (_year.isNotEmpty) ...[
+                        const TextSpan(text: '年份: '),
+                        TextSpan(
+                          text: _year,
+                          style: const TextStyle(
+                              fontSize: 14, color: Colors.black87),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                  child: eps.isNotEmpty
+                      ? _buildEpisodeList(eps)
+                      : const SizedBox.shrink()),
+            ],
           ),
-          const SizedBox(height: 10),
-          if (eps.isNotEmpty) _buildEpisodeList(eps),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -188,9 +220,9 @@ class _PlayPageState extends State<PlayPage> {
     return GridView.count(
       shrinkWrap: true, // 内容多高控件就多高
       physics: const NeverScrollableScrollPhysics(), // 禁止滚动
-      padding: const EdgeInsets.only(top: 10, left: 5, right: 5, bottom: 0),
+      padding: const EdgeInsets.all(5),
       crossAxisCount: 4, // 每行 4 个
-      childAspectRatio: 3, // 宽:高 ≈ 4:1（文字行）
+      childAspectRatio: 3, // 宽:高 ≈ 3:1（文字行）
       mainAxisSpacing: 4,
       crossAxisSpacing: 4,
       children: eps
