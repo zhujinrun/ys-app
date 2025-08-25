@@ -1,6 +1,7 @@
 import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:ys_app/utils/api.dart';
 import 'package:ys_app/models/home.dart';
 
@@ -46,6 +47,7 @@ class _PlayPageState extends State<PlayPage> {
     } else {
       fetchVideoByName(widget.title);
     }
+    WakelockPlus.enable(); // 启用屏幕常亮
   }
 
   Future<void> initializeVideo(String playUrl) async {
@@ -118,6 +120,7 @@ class _PlayPageState extends State<PlayPage> {
 
   @override
   void dispose() {
+    WakelockPlus.disable(); // 禁用屏幕常亮
     _playerController.dispose();
     _chewieController.dispose();
     super.dispose();
