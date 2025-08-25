@@ -4,6 +4,7 @@ import 'package:video_player/video_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:ys_app/utils/api.dart';
 import 'package:ys_app/models/home.dart';
+import 'package:ys_app/utils/dialog.dart';
 
 class PlayPage extends StatefulWidget {
   /// 影视名称
@@ -29,7 +30,7 @@ class _PlayPageState extends State<PlayPage> {
   String _year = '';
   List<Episode> eps = [];
 
-  late Future<void> _initFuture;
+  late Future<void> _playerFuture;
   late VideoPlayerController _playerController;
   late ChewieController _chewieController;
 
@@ -41,12 +42,13 @@ class _PlayPageState extends State<PlayPage> {
     debugPrint('播放地址: ${widget.playUrl}');
     _episode = widget.episode ?? '';
     _playUrl = widget.playUrl ?? '';
-    _initFuture = Future.error('加载失败，未读取影视信息'); // 初始为错误状态
+
     if (_playUrl.isNotEmpty) {
-      initializeVideo(_playUrl);
+      _playerFuture = initializeVideo(_playUrl);
     } else {
-      fetchVideoByName(widget.title);
+      _playerFuture = fetchVideoByName(widget.title);
     }
+
     WakelockPlus.enable(); // 启用屏幕常亮
   }
 
@@ -65,10 +67,13 @@ class _PlayPageState extends State<PlayPage> {
     _playerController.addListener(() {
       if (_playerController.value.hasError) {
         debugPrint('播放错误: ${_playerController.value.errorDescription}');
+        DialogHelper.showError(context, '视频播放错误', onComfirm: () {
+          _playerController.pause();
+        });
       }
     });
     try {
-      _initFuture = _playerController.initialize(); // 🔥关键一步
+      await _playerController.initialize(); // 🔥关键一步
       // 初始化 ChewieController
       _chewieController = ChewieController(
         videoPlayerController: _playerController,
@@ -96,21 +101,23 @@ class _PlayPageState extends State<PlayPage> {
       setState(() {}); // ✅ 初始化完成后刷新界面
     } catch (e) {
       debugPrint('初始化失败: $e');
+      _playerFuture = Future.error("视频初始化失败");
+      setState(() {});
     }
   }
 
   Future<void> fetchVideoByName(String videoName) async {
-    Api.fetchVideoData(videoName).then((data) {
+    try {
+      final data = await Api.fetchVideoData(videoName);
       debugPrint('视频数据: ${data.toJson()}');
       if (data.type == 'movie') {
         // 处理电影类型
         if (data.data.isNotEmpty) {
           final movieEpisode = data.data.first.eps.first;
-          setState(() {
-            _episode = movieEpisode.name;
-            _year = data.data.first.year;
-          });
-          initializeVideo(movieEpisode.url);
+          _episode = movieEpisode.name;
+          _year = data.data.first.year;
+          await initializeVideo(movieEpisode.url);
+          // setState(() {});
         } else {
           debugPrint('没有找到任何电影: ${data.toJson()}');
         }
@@ -118,21 +125,22 @@ class _PlayPageState extends State<PlayPage> {
         // 处理电视剧类型
         if (data.data.isNotEmpty) {
           final firstEpisode = data.data.first.eps.first;
-          setState(() {
-            _episode = firstEpisode.name;
-            _year = data.data.first.year;
-            eps = data.data.first.eps;
-          });
-          initializeVideo(firstEpisode.url);
+          _episode = firstEpisode.name;
+          _year = data.data.first.year;
+          eps = data.data.first.eps;
+          await initializeVideo(firstEpisode.url);
+          // setState(() {});
         } else {
           debugPrint('没有找到任何剧集: ${data.toJson()}');
         }
       } else {
         debugPrint('未知视频类型: ${data.toJson()}');
       }
-    }).catchError((error) {
+    } catch (error) {
       debugPrint('获取视频数据失败: $error');
-    });
+      _playerFuture = Future.error("视频数据获取失败");
+      setState(() {});
+    }
   }
 
   @override
@@ -147,11 +155,10 @@ class _PlayPageState extends State<PlayPage> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    return FutureBuilder(
-      future: _initFuture,
+    return FutureBuilder<void>(
+      future: _playerFuture,
       builder: (_, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting ||
-            snapshot.hasError) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
             child: SizedBox(
               width: 36, // 任意相等值
@@ -162,76 +169,80 @@ class _PlayPageState extends State<PlayPage> {
               ),
             ),
           );
-        }
-        return Scaffold(
-          body: Column(
-            children: [
-              Container(
-                color: Colors.black.withOpacity(0.95),
-                height: screenHeight / 2.95,
-                width: screenWidth,
-                child: _playerController.value.isInitialized
-                    ? Chewie(
-                        controller: _chewieController,
-                      )
-                    : const Center(
-                        child: SizedBox(
-                          width: 36, // 任意相等值
-                          height: 36,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 3, // 可选：更细/更粗
-                            color: Colors.white,
+        } else if (snapshot.hasError) {
+          debugPrint('加载失败: ${snapshot.error}');
+          return const Center(child: Text('视频加载失败'));
+        } else {
+          return Scaffold(
+            body: Column(
+              children: [
+                Container(
+                  color: Colors.black.withOpacity(0.95),
+                  height: screenHeight / 2.95,
+                  width: screenWidth,
+                  child: _playerController.value.isInitialized
+                      ? Chewie(
+                          controller: _chewieController,
+                        )
+                      : const Center(
+                          child: SizedBox(
+                            width: 36, // 任意相等值
+                            height: 36,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3, // 可选：更细/更粗
+                              color: Colors.white,
+                            ),
                           ),
                         ),
-                      ),
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: RichText(
-                  textAlign: TextAlign.left,
-                  text: TextSpan(
-                    style: const TextStyle(color: Colors.black, fontSize: 14),
-                    children: [
-                      const TextSpan(text: ' '),
-                      const TextSpan(text: '正在播放: '),
-                      TextSpan(
-                        text: widget.title,
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black),
-                      ),
-                      const TextSpan(text: '      '),
-                      if (_episode.isNotEmpty) ...[
-                        const TextSpan(text: '剧集: '),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: RichText(
+                    textAlign: TextAlign.left,
+                    text: TextSpan(
+                      style: const TextStyle(color: Colors.black, fontSize: 14),
+                      children: [
+                        const TextSpan(text: ' '),
+                        const TextSpan(text: '正在播放: '),
                         TextSpan(
-                          text: _episode,
+                          text: widget.title,
                           style: const TextStyle(
-                              fontSize: 14, color: Colors.black87),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black),
                         ),
+                        const TextSpan(text: '      '),
+                        if (_episode.isNotEmpty) ...[
+                          const TextSpan(text: '剧集: '),
+                          TextSpan(
+                            text: _episode,
+                            style: const TextStyle(
+                                fontSize: 14, color: Colors.black87),
+                          ),
+                        ],
+                        const TextSpan(text: '      '),
+                        if (_year.isNotEmpty) ...[
+                          const TextSpan(text: '年份: '),
+                          TextSpan(
+                            text: _year,
+                            style: const TextStyle(
+                                fontSize: 14, color: Colors.black87),
+                          ),
+                        ],
                       ],
-                      const TextSpan(text: '      '),
-                      if (_year.isNotEmpty) ...[
-                        const TextSpan(text: '年份: '),
-                        TextSpan(
-                          text: _year,
-                          style: const TextStyle(
-                              fontSize: 14, color: Colors.black87),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                  child: eps.isNotEmpty
-                      ? _buildEpisodeList(eps)
-                      : const SizedBox.shrink()),
-            ],
-          ),
-        );
+                const SizedBox(height: 10),
+                Expanded(
+                    child: eps.isNotEmpty
+                        ? _buildEpisodeList(eps)
+                        : const SizedBox.shrink()),
+              ],
+            ),
+          );
+        }
       },
     );
   }
@@ -267,7 +278,9 @@ class _PlayPageState extends State<PlayPage> {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w500),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),

@@ -11,6 +11,13 @@ class HomeData {
     );
   }
 
+  factory HomeData.fromNull() {
+    return HomeData(
+      newList: [],
+      hotList: [],
+    );
+  }
+
   /// 将对象序列化为 Map<String, dynamic>
   Map<String, dynamic> toJson() {
     return {

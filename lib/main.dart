@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:ys_app/search.dart';
+import 'package:ys_app/splash.dart';
+import 'package:ys_app/utils/sputil.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // 设置状态栏透明
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   // // 强制横屏
   // SystemChrome.setPreferredOrientations(
   //     [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+  // 初始化 SharedPreferences
+  await SpUtil.init(); // 关键：等待初始化
   runApp(const MyApp());
 }
 
@@ -46,7 +49,8 @@ class MyApp extends StatelessWidget {
       //   episode: '第一集',
       //   playUrl: 'https://hd.ijycnd.com/play/negJ1q9d/index.m3u8',
       // ),
-      home: const SearchPage(),
+      // home: const HomePage(),
+      home: const SplashPage(),
     );
   }
 }

@@ -3,18 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ys_app/play.dart';
 import 'package:ys_app/utils/api.dart';
-import 'package:ys_app/utils/config.dart';
-import 'package:ys_app/utils/dialog.dart';
 import 'models/home.dart';
 
-class SearchPage extends StatefulWidget {
-  const SearchPage({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<SearchPage> createState() => _SearchPageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _SearchPageState extends State<SearchPage> {
+class _HomePageState extends State<HomePage> {
   late Future<HomeData> _homeDataFuture;
   // 数据
   List<VideoItem> _hot = [];
@@ -77,13 +75,13 @@ class _SearchPageState extends State<SearchPage> {
     _overlayEntry = null;
   }
 
-  bool _firstRun = true;
-
   @override
   void initState() {
     super.initState();
 
-    _homeDataFuture = Future.error('加载失败，未配置服务地址'); // 初始为错误状态
+    // 拉取首页数据
+    _homeDataFuture = Api.fetchHomeData();
+
     _searchController.addListener(() {
       _debounce?.cancel();
       _debounce = Timer(const Duration(milliseconds: 400),
@@ -94,40 +92,29 @@ class _SearchPageState extends State<SearchPage> {
     _focus.addListener(() {
       if (!_focus.hasFocus) _hideOverlay();
     });
-
-    // 弹框只弹一次
-    if (_firstRun) {
-      _firstRun = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        final url = await DialogHelper.showUrlInput(context);
-        if (url != null && url.isNotEmpty) {
-          AppConfigs.apiBaseUrl = url;
-          setState(() {});
-          // 重新拉取首页
-          _homeDataFuture = Api.fetchHomeData();
-        }
-      });
-    }
   }
 
-  void _onSearch(String key) {
+  void _onSearch(String key) async {
     if (key.isEmpty) {
       _hideOverlay();
       return;
     }
-    Api.fetchSearchData(key).then((data) {
+    try {
+      final data = await Api.fetchSearchData(key);
       debugPrint('搜索成功: ${data.toString()}');
       setState(() {
         _filter = data;
       });
-    }).catchError((error) {
-      _filter = [];
+    } catch (error) {
       debugPrint('搜索失败: $error');
-    }).whenComplete(() {
+      setState(() {
+        _filter = [];
+      });
+    } finally {
       if (_filter.isNotEmpty) {
         _showOverlay();
       }
-    });
+    }
   }
 
   @override
@@ -202,13 +189,17 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  Widget _buildTitle(String title, Color color) {
+  Widget _buildTitle(String title, Color activeColor) {
     return Row(
       children: [
-        Container(width: 4, height: 16, color: color),
+        Container(width: 4, height: 16, color: activeColor),
         const SizedBox(width: 6),
         Text(title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            )),
       ],
     );
   }
@@ -250,7 +241,9 @@ class _SearchPageState extends State<SearchPage> {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w500),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),

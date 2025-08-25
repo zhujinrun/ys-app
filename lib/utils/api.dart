@@ -7,13 +7,21 @@ class Api {
     ..options.connectTimeout = const Duration(seconds: 10)
     ..options.receiveTimeout = const Duration(seconds: 15);
 
-  static Future<bool> testHealth() async {
+  static Future<bool> checkHealth(apiBaseUrl) async {
+    if (apiBaseUrl.isEmpty) return false;
+    final validUri = Uri.tryParse(apiBaseUrl);
+    if (validUri == null || !validUri.hasScheme) {
+      return false;
+    }
     try {
-      final res = await _dio.get('${AppConfigs.apiBaseUrl}/api/ping');
-      return res.statusCode == 200;
+      final res = await _dio.get('$apiBaseUrl/api/ping');
+      if (res.statusCode == 200) {
+        return res.data['message'] == 'pong';
+      }
     } catch (e) {
       return false;
     }
+    return false;
   }
 
   static Future<HomeData> fetchHomeData() async {
