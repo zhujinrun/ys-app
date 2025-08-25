@@ -55,6 +55,11 @@ class _PlayPageState extends State<PlayPage> {
     // 初始化 VideoPlayerController，这里使用 m3u8 链接
     _playerController = VideoPlayerController.networkUrl(
       Uri.parse(_playUrl),
+      // videoPlayerOptions: VideoPlayerOptions(
+      //   webOptions: const VideoPlayerWebOptions(
+      //     controls: VideoPlayerWebOptionsControls.enabled(),
+      //   ),
+      // ),
     );
     // 添加监听器以捕获错误
     _playerController.addListener(() {
@@ -70,6 +75,18 @@ class _PlayPageState extends State<PlayPage> {
         autoPlay: false,
         looping: false,
         showControls: true,
+        playbackSpeeds: [0.5, 0.75, 1, 1.25, 1.5, 2],
+        materialProgressColors: ChewieProgressColors(
+          playedColor: Colors.blue.shade700, // 已播放部分的颜色
+          handleColor: Colors.blue.shade300, // 拖动柄的颜色
+          backgroundColor: Colors.grey.shade400, // 背景颜色
+          bufferedColor: Colors.blue.shade100, // 已缓冲部分的颜色
+        ),
+        optionsTranslation: OptionsTranslation(
+          playbackSpeedButtonText: '播放速度',
+          subtitlesButtonText: '字幕',
+          cancelButtonText: '取消',
+        ),
         // aspectRatio: _playerController.value.aspectRatio,
         errorBuilder: (context, error) => Center(
           child:
@@ -151,7 +168,7 @@ class _PlayPageState extends State<PlayPage> {
             children: [
               Container(
                 color: Colors.black.withOpacity(0.95),
-                height: screenHeight / 2.9,
+                height: screenHeight / 2.95,
                 width: screenWidth,
                 child: _playerController.value.isInitialized
                     ? Chewie(

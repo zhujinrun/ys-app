@@ -157,7 +157,7 @@ class _SearchPageState extends State<SearchPage> {
                 height: 36,
                 child: CircularProgressIndicator(
                   strokeWidth: 3, // 可选：更细/更粗
-                  color: Colors.white,
+                  color: Colors.black,
                 ),
               ),
             );
