@@ -159,19 +159,32 @@ class _PlayPageState extends State<PlayPage> {
       future: _playerFuture,
       builder: (_, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: SizedBox(
-              width: 36, // 任意相等值
-              height: 36,
-              child: CircularProgressIndicator(
-                strokeWidth: 3, // 可选：更细/更粗
-                color: Colors.white,
+          return const Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 20),
+                  Text('正在加载视频...'),
+                ],
               ),
             ),
           );
         } else if (snapshot.hasError) {
           debugPrint('加载失败: ${snapshot.error}');
-          return const Center(child: Text('视频加载失败'));
+          return const Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error, size: 40, color: Colors.redAccent),
+                  SizedBox(height: 10),
+                  Text('视频加载失败', style: TextStyle(color: Colors.redAccent)),
+                ],
+              ),
+            ),
+          );
         } else {
           return Scaffold(
             body: Column(
@@ -186,8 +199,8 @@ class _PlayPageState extends State<PlayPage> {
                         )
                       : const Center(
                           child: SizedBox(
-                            width: 36, // 任意相等值
-                            height: 36,
+                            width: 40, // 任意相等值
+                            height: 40,
                             child: CircularProgressIndicator(
                               strokeWidth: 3, // 可选：更细/更粗
                               color: Colors.white,
@@ -250,7 +263,7 @@ class _PlayPageState extends State<PlayPage> {
   Widget _buildEpisodeList(List<Episode> eps) {
     return GridView.count(
       shrinkWrap: true, // 内容多高控件就多高
-      physics: const NeverScrollableScrollPhysics(), // 禁止滚动
+      // physics: const NeverScrollableScrollPhysics(), // 禁止滚动
       padding: const EdgeInsets.all(5),
       crossAxisCount: 4, // 每行 4 个
       childAspectRatio: 3, // 宽:高 ≈ 3:1（文字行）

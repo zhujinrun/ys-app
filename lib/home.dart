@@ -138,18 +138,31 @@ class _HomePageState extends State<HomePage> {
         future: _homeDataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: SizedBox(
-                width: 36, // 任意相等值
-                height: 36,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3, // 可选：更细/更粗
-                  color: Colors.black,
+            return const Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 20),
+                    Text('正在加载数据...'),
+                  ],
                 ),
               ),
             );
           } else if (snapshot.hasError) {
-            return Center(child: Text('加载失败：${snapshot.error}'));
+            return const Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error, size: 40, color: Colors.redAccent),
+                    SizedBox(height: 10),
+                    Text('数据加载失败', style: TextStyle(color: Colors.redAccent)),
+                  ],
+                ),
+              ),
+            );
           } else {
             final homeData = snapshot.data!;
             debugPrint('首页数据: ${homeData.toJson()}');
@@ -157,30 +170,33 @@ class _HomePageState extends State<HomePage> {
             _latest = homeData.newList;
             return Padding(
               padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  // 搜索框
-                  TextField(
-                    key: _searchKey,
-                    controller: _searchController,
-                    decoration: const InputDecoration(
-                      hintText: '请输入影片名称...',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // 搜索框
+                    TextField(
+                      key: _searchKey,
+                      focusNode: _focus,
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: '请输入影片名称...',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-                  // 热门推荐
-                  _buildTitle('热门推荐', Colors.redAccent),
-                  _buildTitleList(_hot),
+                    // 热门推荐
+                    _buildTitle('热门推荐', Colors.redAccent),
+                    _buildTitleList(_hot),
 
-                  const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                  // 最新上线
-                  _buildTitle('最新上线', Colors.blueAccent),
-                  _buildTitleList(_latest),
-                ],
+                    // 最新上线
+                    _buildTitle('最新上线', Colors.blueAccent),
+                    _buildTitleList(_latest),
+                  ],
+                ),
               ),
             );
           }
