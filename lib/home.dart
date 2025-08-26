@@ -239,8 +239,8 @@ class _HomePageState extends State<HomePage> {
                   MaterialPageRoute(
                     builder: (_) => PlayPage(
                       item.name,
-                      episode: item.eps.isNotEmpty ? item.eps.first.name : null,
-                      playUrl: item.eps.isNotEmpty ? item.eps.first.url : null,
+                      year: item.year,
+                      eps: item.eps,
                     ),
                   ),
                 );

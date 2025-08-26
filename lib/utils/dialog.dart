@@ -88,7 +88,7 @@ class DialogHelper {
   }
 
   static Future<void> showSnackBar(BuildContext context, String message,
-      {VoidCallback? onClosed}) async {
+      {VoidCallback? onClosed, Color? backgroundColor = Colors.red}) async {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -96,7 +96,7 @@ class DialogHelper {
           textAlign: TextAlign.center,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        backgroundColor: Colors.red, // 设置背景颜色
+        backgroundColor: backgroundColor, // 设置背景颜色
       ),
     );
     if (onClosed != null) {
