@@ -1,0 +1,77 @@
+name: Build & Release Flutter APK
+
+on:
+  push:
+    tags:
+      - 'v*'   # 推送形如 v1.0.0 的 tag 即触发
+
+permissions:
+  contents: write   # 允许写 Release（schedule/dispatch 时必需）
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 拉代码
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. 配置 JDK
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+
+      # 3. 安装 Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'   # 改成你的版本
+
+      # 4. 获取依赖
+      - run: flutter pub get
+
+      # 5. 解码 keystore
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEY_STORE_BASE64 }}" | base64 -d > android/upload-keystore.jks
+          echo "storePassword=${{ secrets.STORE_PASSWORD }}" > android/key.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
+          echo "storeFile=../upload-keystore.jks" >> android/key.properties
+
+      # 6. 自动写入版本号：语义版本 + commit 计数
+      - name: Inject version from tag
+        run: |
+          SEMVER=${GITHUB_REF#refs/tags/v}
+          BUILD=$(git rev-list --count HEAD)
+          VERSION="${SEMVER}+${BUILD}"
+          sed -i "s/^version: .*/version: $VERSION/" pubspec.yaml
+
+      # 7. 构建 Build APK
+      - run: flutter build apk --release --target-platform android-arm64
+
+      # 8. 重命名并压缩 APK
+      - name: Rename and zip APK
+        run: |
+          APK_NAME="ys_app-${{ github.ref_name }}"
+          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/${APK_NAME}.apk
+          zip -j build/app/outputs/flutter-apk/${APK_NAME}.zip build/app/outputs/flutter-apk/${APK_NAME}.apk
+
+      # 9. 上传 APK 到 Release
+      - name: Release APK
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: |
+            自动生成 APK  
+            对应提交：${{ github.sha }}
+          draft: false
+          prerelease: false
+          files: |
+            build/app/outputs/flutter-apk/ys_app-${{ github.ref_name }}.apk
+            build/app/outputs/flutter-apk/ys_app-${{ github.ref_name }}.zip
